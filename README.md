@@ -29,6 +29,14 @@ This launcher is transparent, so you will use it with all `podman`'s flags and s
 To update, download the new release, and with the new binary run `podman-launcher upgrade`
 to upgrade the embedded `podman` package.
 
+## Dependencies
+
+On the system, the only dependencies needed are the one that `podman` needs.
+For rootless setup to work you need `newuidmap` and `newgidmap` binaries (usually
+part of the `shadow` package) and correctly set the `/etc/subuid` and `/etc/subgid`
+
+Refer to the official documentation for further info: https://github.com/containers/podman/blob/main/docs/tutorials/rootless_tutorial.md
+
 # Compile
 
 ```console
