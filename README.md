@@ -24,8 +24,20 @@ This launcher is transparent, so you will use it with all `podman`'s flags and s
 To update, download the new release, and with the new binary run `podman-launcher upgrade`
 to upgrade the embedded `podman` package.
 
+# Compile
 
-## Use Cases
+```console
+make clean
+make download
+make podman-launcher
+```
+
+`make download` will download the latest bundles of `crun` and `podman-static` and
+prepare them for the launcher.
+
+`make podman-launcher` will actually compile the `main.go` and embed the targz in it.
+
+# Use Cases
 
 It's a nice-to-have for systems like the Steamdeck or where you're not allowed
 to modify the system in any way.
