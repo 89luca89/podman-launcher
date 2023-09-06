@@ -8,12 +8,17 @@ this will let us to easily ship the container manager without needing all the
 dependency resolution of a package manager.
 
 This project will take care of shipping the release (together with `crun`) and
-setting it up properly in order to work completely from $HOME, and without overlapping
+setting it up properly in order to work completely from $HOME, and **without overlapping**
 with a native `podman` installation.
+
+Rootful `podman` works (if needed), and will unpack a copy of the binaries in /root for it to
+work.
 
 ## Installation
 
 Download the binary and put it in your $PATH
+
+Optionally, you can name it `podman` in order to make it easier to type/use
 
 ## Usage
 
