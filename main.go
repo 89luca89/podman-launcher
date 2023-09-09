@@ -152,6 +152,11 @@ func setupConfs() error {
 }
 
 func main() {
+	// if specific PODMAN_STATIC_TARGET_DIR is set, then use that instead
+	if os.Getenv("PODMAN_STATIC_TARGET_DIR") != "" {
+		targetDir = os.Getenv("PODMAN_STATIC_TARGET_DIR")
+	}
+
 	if len(os.Args) > 1 && os.Args[1] == "upgrade" {
 		err := os.RemoveAll(filepath.Join(targetDir, "bin/podman"))
 		if err != nil {
