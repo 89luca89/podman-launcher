@@ -15,7 +15,11 @@
 # vendor/
 tags
 dist
-podman-launcher
-assets
+podman-launcher-arm64
+podman-launcher-amd64
+assets-arm64
+assets-amd64
+assets-arm64.tar.gz
+assets-amd64.tar.gz
 TODO.*
 assets.tar.gz
