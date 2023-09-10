@@ -107,14 +107,15 @@ func untar(reader io.Reader, dst string) error {
 // populate our container.conf file using the template given.
 func setupContainerConf() error {
 	containerConf := `[engine]
-infra_image="k8s.gcr.io/pause:3.8"
+cgroup_manager = "cgroupfs"
+conmon_path=[ "{{.Path}}/lib/podman/conmon" ]
 events_logger="file"
 exit_command_delay = 10
-runtime = "crun"
-stop_timeout = 5
-conmon_path=[ "{{.Path}}/lib/podman/conmon" ]
 helper_binaries_dir = [ "{{.Path}}/lib/podman" ]
+infra_image="k8s.gcr.io/pause:3.8"
+runtime = "crun"
 static_dir = "{{.Path}}/share/podman/libpod"
+stop_timeout = 5
 volume_path = "{{.Path}}/share/podman/volume"
 [engine.runtimes]
 crun = [ "{{.Path}}/bin/crun" ]
@@ -319,6 +320,8 @@ func main() {
 
 	err = cmd.Run()
 	if err != nil {
-		panic(err)
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			os.Exit(exiterr.ExitCode())
+		}
 	}
 }
