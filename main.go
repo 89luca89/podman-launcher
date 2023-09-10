@@ -26,6 +26,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"text/template"
 )
@@ -49,11 +50,24 @@ var version = "devel"
 
 var (
 	targetDir              = filepath.Join(os.Getenv("HOME"), ".local/share/podman-static")
+	tmpDir                 = "/var/tmp"
 	containersConf         = filepath.Join(targetDir, "/conf/containers/containers.conf")
 	containersRegistryConf = filepath.Join(targetDir, "/conf/containers/registries.conf")
 	containersStorageConf  = filepath.Join(targetDir, "/conf/containers/storage.conf")
 	containersPolicyJSON   = filepath.Join(targetDir, "/conf/containers/policy.json")
 )
+
+var policyCommads = []string{
+	"build",
+	"create",
+	"import",
+	"load",
+	"pull",
+	"push",
+	"run",
+	"save",
+	"play",
+}
 
 func untar(reader io.Reader, dst string) error {
 	err := os.MkdirAll(dst, 0o755)
@@ -160,8 +174,18 @@ func main() {
 		containersPolicyJSON = filepath.Join(targetDir, "/conf/containers/policy.json")
 	}
 
+	if os.Getenv("PODMAN_STATIC_TMP_DIR") != "" {
+		tmpDir = os.Getenv("PODMAN_STATIC_TMP_DIR")
+	}
+
+	_, err := exec.LookPath("tar")
+	if err != nil {
+		println("missing dependency tar")
+		os.Exit(127)
+	}
+
 	// create our unpack dir
-	err := os.MkdirAll(targetDir, 0o755)
+	err = os.MkdirAll(targetDir, 0o755)
 	if err != nil {
 		panic(err)
 	}
@@ -172,33 +196,16 @@ func main() {
 			panic(err)
 		}
 
-		cmd := exec.Command(os.Args[0], "info")
-		cmd.Stderr = os.Stderr
-		cmd.Stdout = os.Stdout
-		cmd.Stdin = os.Stdin
-
-		if err := cmd.Run(); err != nil {
-			if exitError, ok := err.(*exec.ExitError); ok {
-				os.Exit(exitError.ExitCode())
-			}
-		}
-
-		os.Exit(0)
+		os.Args = []string{os.Args[0], "info"}
 	}
 
 	if len(os.Args) > 1 && os.Args[1] == "version" {
 		println("Launcher:     " + version)
 	}
 
-	_, err = exec.LookPath("tar")
-	if err != nil {
-		println("missing dependency tar")
-		os.Exit(127)
-	}
-
 	// we want our custom runtime directory for this podman environment, or
 	// it might crash with an already running podman in /run/user/$UID/containers
-	runtimeDir := filepath.Join("/var/tmp/podman-static/", strconv.Itoa(os.Getuid()))
+	runtimeDir := filepath.Join(tmpDir, "podman-static", strconv.Itoa(os.Getuid()))
 
 	// we need to make sure the runtime dir is present, or podman will complain
 	err = os.MkdirAll(runtimeDir, 0o755)
@@ -217,36 +224,17 @@ func main() {
 	//
 	// So we will need to add the "--signature-policy" flag in the commands that
 	// support it.
-	if len(os.Args) > 1 && (os.Args[1] == "run" ||
-		os.Args[1] == "build" ||
-		os.Args[1] == "import" ||
-		os.Args[1] == "load" ||
-		os.Args[1] == "push" ||
-		os.Args[1] == "save" ||
-		os.Args[1] == "pull") {
-		args = append(args, os.Args[1])
-		args = append(args, "--signature-policy")
-		args = append(args, containersPolicyJSON)
-		// then we just forward all the flags to the child podman command
-		args = append(args, os.Args[2:]...)
-	} else if len(os.Args) > 2 && (os.Args[2] == "run" ||
-		os.Args[2] == "build" ||
-		os.Args[2] == "import" ||
-		os.Args[2] == "load" ||
-		os.Args[2] == "pull" ||
-		os.Args[2] == "push" ||
-		os.Args[2] == "save" ||
-		os.Args[2] == "play") {
-		args = append(args, os.Args[1])
-		args = append(args, os.Args[2])
-		args = append(args, "--signature-policy")
-		args = append(args, containersPolicyJSON)
-		// then we just forward all the flags to the child podman command
-		args = append(args, os.Args[3:]...)
-	} else {
-		// else we just forward all the flags to the child podman command
-		args = append(args, os.Args[1:]...)
+	for _, command := range policyCommads {
+		if slices.Contains(os.Args, command) {
+			index := slices.Index(os.Args, command)
+			os.Args = slices.Insert(os.Args, index+1, []string{"--signature-policy", containersPolicyJSON}...)
+
+			break
+		}
 	}
+
+	// then we just forward all the flags to the child podman command
+	args = append(args, os.Args[1:]...)
 
 	// if we don't have podman in our target dir, then unpack it
 	_, err = os.Stat(filepath.Join(targetDir, "bin/podman"))
