@@ -27,7 +27,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"syscall"
 	"text/template"
 )
 
@@ -155,6 +154,16 @@ func main() {
 	// if specific PODMAN_STATIC_TARGET_DIR is set, then use that instead
 	if os.Getenv("PODMAN_STATIC_TARGET_DIR") != "" {
 		targetDir = os.Getenv("PODMAN_STATIC_TARGET_DIR")
+		containersConf = filepath.Join(targetDir, "/conf/containers/containers.conf")
+		containersRegistryConf = filepath.Join(targetDir, "/conf/containers/registries.conf")
+		containersStorageConf = filepath.Join(targetDir, "/conf/containers/storage.conf")
+		containersPolicyJSON = filepath.Join(targetDir, "/conf/containers/policy.json")
+	}
+
+	// create our unpack dir
+	err := os.MkdirAll(targetDir, 0o755)
+	if err != nil {
+		panic(err)
 	}
 
 	if len(os.Args) > 1 && os.Args[1] == "upgrade" {
@@ -181,21 +190,22 @@ func main() {
 		println("Launcher:     " + version)
 	}
 
-	_, err := exec.LookPath("tar")
+	_, err = exec.LookPath("tar")
 	if err != nil {
 		println("missing dependency tar")
-		os.Exit(127)
-	}
-
-	_, err = exec.LookPath("cp")
-	if err != nil {
-		println("missing dependency cp")
 		os.Exit(127)
 	}
 
 	// we want our custom runtime directory for this podman environment, or
 	// it might crash with an already running podman in /run/user/$UID/containers
 	runtimeDir := filepath.Join("/var/tmp/podman-static/", strconv.Itoa(os.Getuid()))
+
+	// we need to make sure the runtime dir is present, or podman will complain
+	err = os.MkdirAll(runtimeDir, 0o755)
+	if err != nil {
+		panic(err)
+	}
+
 	// set the --root and --runroot flags accordingly
 	args := []string{
 		"--root", filepath.Join(targetDir, "share/containers/storage"),
@@ -238,35 +248,6 @@ func main() {
 		args = append(args, os.Args[1:]...)
 	}
 
-	// Setup our ENV to point to our custom files:
-	//		https://docs.podman.io/en/latest/markdown/podman.1.html#environment-variables
-	err = os.Setenv("CONTAINERS_CONF", containersConf)
-	if err != nil {
-		panic(err)
-	}
-
-	err = os.Setenv("CONTAINERS_REGISTRIES_CONF", containersRegistryConf)
-	if err != nil {
-		panic(err)
-	}
-
-	err = os.Setenv("CONTAINERS_STORAGE_CONF", containersStorageConf)
-	if err != nil {
-		panic(err)
-	}
-
-	// give precedence to our binaries in this context
-	err = os.Setenv("PATH", targetDir+"/bin:"+os.Getenv("PATH"))
-	if err != nil {
-		panic(err)
-	}
-
-	// create our unpack dir
-	err = os.MkdirAll(targetDir, 0o755)
-	if err != nil {
-		panic(err)
-	}
-
 	// if we don't have podman in our target dir, then unpack it
 	_, err = os.Stat(filepath.Join(targetDir, "bin/podman"))
 	if err != nil {
@@ -282,23 +263,25 @@ func main() {
 		}
 	}
 
-	// we need to make sure the runtime dir is present, or podman will complain
-	err = os.MkdirAll(runtimeDir, 0o755)
-	if err != nil {
-		panic(err)
-	}
-
-	// this also helps to separate the crun instances
-	err = os.Setenv("XDG_RUNTIME_DIR", runtimeDir)
-	if err != nil {
-		panic(err)
-	}
-
 	command := filepath.Join(targetDir, "bin/podman")
-	args = append([]string{command}, args...)
 
-	// execve podman
-	err = syscall.Exec(command, args, os.Environ())
+	cmd := exec.Command(command, args...)
+
+	env := os.Environ()
+	// Setup our ENV to point to our custom files:
+	//		https://docs.podman.io/en/latest/markdown/podman.1.html#environment-variables
+	env = append(env, "CONTAINERS_CONF="+containersConf)
+	env = append(env, "CONTAINERS_REGISTRIES_CONF="+containersRegistryConf)
+	env = append(env, "CONTAINERS_STORAGE_CONF="+containersStorageConf)
+	env = append(env, "PATH="+targetDir+"/bin:"+os.Getenv("PATH"))
+	env = append(env, "XDG_RUNTIME_DIR="+runtimeDir)
+
+	cmd.Env = env
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+
+	err = cmd.Run()
 	if err != nil {
 		panic(err)
 	}

@@ -32,6 +32,8 @@ to upgrade the embedded `podman` package.
 ## Dependencies
 
 On the system, the only dependencies needed are the one that `podman` needs.
+Specifically `iptables` and `ip6tables` for the bridge to work (not needed if using host's network namespace). 
+
 For rootless setup to work you need `newuidmap` and `newgidmap` binaries (usually
 part of the `shadow` package) and correctly set the `/etc/subuid` and `/etc/subgid`
 
