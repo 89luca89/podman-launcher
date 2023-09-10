@@ -69,6 +69,29 @@ var policyCommads = []string{
 	"play",
 }
 
+var podmanFiles = []string{
+	"bin/crun",
+	"bin/fuse-overlayfs",
+	"bin/fusermount3",
+	"bin/podman",
+	"bin/runc",
+	"bin/slirp4netns",
+	"conf/cni/net.d/87-podman-bridge.conflist",
+	"conf/containers/containers.conf",
+	"conf/containers/policy.json",
+	"conf/containers/registries.conf",
+	"conf/containers/storage.conf",
+	"lib/cni/bridge",
+	"lib/cni/firewall",
+	"lib/cni/host-local",
+	"lib/cni/loopback",
+	"lib/cni/portmap",
+	"lib/cni/tuning",
+	"lib/podman/catatonit",
+	"lib/podman/conmon",
+	"lib/podman/rootlessport",
+}
+
 func untar(reader io.Reader, dst string) error {
 	err := os.MkdirAll(dst, 0o755)
 	if err != nil {
@@ -140,25 +163,39 @@ func setupStorageConf() error {
 
 func setupConfs() error {
 	// if we already ran the first setup, we don't overwrite the configs
-	_, err := os.Stat(containersStorageConf)
-	if err == nil {
-		return nil
+	_, errStorageConf := os.Stat(containersStorageConf)
+	_, errConf := os.Stat(containersConf)
+	_, err := os.Stat(filepath.Join(targetDir, "conf"))
+	if err != nil {
+		// if we didn't then copy the default configs from etc into conf and set them up
+		err = exec.Command("cp", "-r", targetDir+"/etc", targetDir+"/conf").Run()
+		if err != nil {
+			return err
+		}
 	}
 
-	// if we didn't then copy the default configs from etc into conf and set them up
-	err = exec.Command("cp", "-r", targetDir+"/etc", targetDir+"/conf").Run()
-	if err != nil {
-		return err
+	if errStorageConf != nil {
+		err = exec.Command("cp", "-r", targetDir+"/etc/containers/storage.conf", containersStorageConf).Run()
+		if err != nil {
+			return err
+		}
+
+		err = setupStorageConf()
+		if err != nil {
+			return err
+		}
 	}
 
-	err = setupStorageConf()
-	if err != nil {
-		return err
-	}
+	if errConf != nil {
+		err = exec.Command("cp", "-r", targetDir+"/etc/containers/containers.conf", containersConf).Run()
+		if err != nil {
+			return err
+		}
 
-	err = setupContainerConf()
-	if err != nil {
-		return err
+		err = setupContainerConf()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -237,8 +274,16 @@ func main() {
 	args = append(args, os.Args[1:]...)
 
 	// if we don't have podman in our target dir, then unpack it
-	_, err = os.Stat(filepath.Join(targetDir, "bin/podman"))
-	if err != nil {
+	unpack := false
+	for _, file := range podmanFiles {
+		_, err = os.Stat(filepath.Join(targetDir, file))
+		if err != nil {
+			unpack = true
+			break
+		}
+	}
+
+	if unpack {
 		err = untar(bytes.NewReader(pack), targetDir)
 		if err != nil {
 			panic(err)
