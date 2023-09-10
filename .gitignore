@@ -17,6 +17,8 @@ tags
 dist
 podman-launcher-arm64
 podman-launcher-amd64
+podman-launcher-arm64.sha256
+podman-launcher-amd64.sha256
 assets-arm64
 assets-amd64
 assets-arm64.tar.gz

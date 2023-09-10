@@ -17,11 +17,13 @@ podman-launcher-amd64:
 	@rm -f podman-launcher-amd64
 	@cp assets-amd64.tar.gz assets.tar.gz
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -mod vendor -ldflags="-s -w -X 'main.version=$${RELEASE_VERSION:-$(PODMAN_LAUNCHER_VERSION)}'" -o podman-launcher-amd64 main.go
+	sha256sum podman-launcher-amd64 > podman-launcher-amd64.sha256
 
 podman-launcher-arm64:
 	@rm -f podman-launcher-arm64
 	@cp assets-arm64.tar.gz assets.tar.gz
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -mod vendor -ldflags="-s -w -X 'main.version=$${RELEASE_VERSION:-$(PODMAN_LAUNCHER_VERSION)}'" -o podman-launcher-arm64 main.go
+	sha256sum podman-launcher-arm64 > podman-launcher-arm64.sha256
 
 download-arm64:
 	rm -rf assets-arm64
