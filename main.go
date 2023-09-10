@@ -165,6 +165,7 @@ func setupConfs() error {
 	// if we already ran the first setup, we don't overwrite the configs
 	_, errStorageConf := os.Stat(containersStorageConf)
 	_, errConf := os.Stat(containersConf)
+
 	_, err := os.Stat(filepath.Join(targetDir, "conf"))
 	if err != nil {
 		// if we didn't then copy the default configs from etc into conf and set them up
@@ -275,10 +276,12 @@ func main() {
 
 	// if we don't have podman in our target dir, then unpack it
 	unpack := false
+
 	for _, file := range podmanFiles {
 		_, err = os.Stat(filepath.Join(targetDir, file))
 		if err != nil {
 			unpack = true
+
 			break
 		}
 	}
