@@ -24,6 +24,46 @@ Optionally, you can name it `podman` in order to make it easier to type/use
 
 This launcher is transparent, so you will use it with all `podman`'s flags and so on
 
+## Use in your project
+
+You can use the `podman-launcher` as a library in your project, if you depend on `podman` and
+want to embed it as a dependency.
+
+You'll need to embed the `assets.tar.gz` (that you'll find in the release page) in your
+application, and pass it to the `launcher.Config` struct for it to work
+
+Example code:
+
+```go
+package main
+
+import (
+    _ "embed"
+
+	"github.com/89luca89/podman-launcher/pkg/launcher"
+)
+
+var assets []byte
+
+func main() {
+    conf := launcher.NewLauncher("/home/luca-linux/.podman-launcher", "/var/tmp", assets)
+
+    command := []string{
+        "podman",
+        "run", "--rm", "-ti",
+        "alpine:latest",
+        "/bin/sh"
+    }
+
+	err := conf.Run(command)
+	if err != nil {
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			os.Exit(exiterr.ExitCode())
+		}
+	}
+}
+```
+
 ## Upgrade
 
 To update, download the new release, and with the new binary run `podman-launcher upgrade`
@@ -43,8 +83,7 @@ Refer to the official documentation for further info: https://github.com/contain
 
 ```console
 make clean
-make download
-make podman-launcher
+make
 ```
 
 `make download` will download the latest bundles of `crun` and `podman-static` and
