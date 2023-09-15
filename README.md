@@ -16,7 +16,7 @@ work.
 
 ## Installation
 
-Download the binary and put it in your $PATH
+Download the binary, make it executable and put it in your $PATH
 
 Optionally, you can name it `podman` in order to make it easier to type/use
 
