@@ -41,7 +41,7 @@ import (
 	"time"
 )
 
-var policyCommads = []string{
+var policySubCommads = []string{
 	"build",
 	"create",
 	"import",
@@ -51,6 +51,12 @@ var policyCommads = []string{
 	"run",
 	"save",
 	"play",
+}
+
+var policyCommads = []string{
+	"container",
+	"images",
+	"kube",
 }
 
 // NewLauncher will return an initialized launcher config with input dirs and payload.
@@ -98,7 +104,15 @@ func (conf *Config) Run(argv []string) error {
 	// So we will need to add the "--signature-policy" flag in the commands that
 	// support it.
 	for _, command := range policyCommads {
-		if slices.Contains(argv, command) {
+		if args[1] == command {
+			index := slices.Index(argv, command)
+			argv = slices.Insert(argv, index+2, []string{"--signature-policy", conf.containersPolicyJSON}...)
+
+			break
+		}
+	}
+	for _, command := range policySubCommads {
+		if args[1] == command {
 			index := slices.Index(argv, command)
 			argv = slices.Insert(argv, index+1, []string{"--signature-policy", conf.containersPolicyJSON}...)
 
